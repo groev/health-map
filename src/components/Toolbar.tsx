@@ -8,6 +8,7 @@ import {
   Text,
   Stack,
   CopyButton,
+  Switch,
   useMantineColorScheme,
 } from '@mantine/core';
 import {
@@ -20,7 +21,7 @@ import {
   IconHelp,
 } from '@tabler/icons-react';
 import type { HealthData } from '../types';
-import { exportData } from '../storage';
+import { exportData, exportDataAsText } from '../storage';
 
 interface ToolbarProps {
   data: HealthData;
@@ -35,11 +36,14 @@ export function Toolbar({ data, onAddEntry, onImport, onClear }: ToolbarProps) {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [clearModalOpen, setClearModalOpen] = useState(false);
   const [helpModalOpen, setHelpModalOpen] = useState(false);
+  const [exportAsText, setExportAsText] = useState(false);
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const exportJson = exportData(data);
+  const exportText = exportDataAsText(data);
+  const exportContent = exportAsText ? exportText : exportJson;
 
   const handleImport = () => {
     setImportError('');
@@ -64,11 +68,13 @@ export function Toolbar({ data, onAddEntry, onImport, onClear }: ToolbarProps) {
   };
 
   const handleDownload = () => {
-    const blob = new Blob([exportJson], { type: 'application/json' });
+    const ext = exportAsText ? 'txt' : 'json';
+    const mime = exportAsText ? 'text/plain' : 'application/json';
+    const blob = new Blob([exportContent], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `health-map-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `health-map-export-${new Date().toISOString().split('T')[0]}.${ext}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -186,25 +192,36 @@ export function Toolbar({ data, onAddEntry, onImport, onClear }: ToolbarProps) {
         size="lg"
       >
         <Stack>
-          <Text size="sm" c="dimmed">
-            Copy this JSON to use with ChatGPT, Claude, or other LLMs for health analysis.
-          </Text>
+          <Group justify="space-between">
+            <Text size="sm" c="dimmed">
+              {exportAsText
+                ? 'Readable text format for pasting into LLMs.'
+                : 'JSON format for backup and LLM analysis.'}
+            </Text>
+            <Switch
+              label="Text format"
+              checked={exportAsText}
+              onChange={(e) => setExportAsText(e.currentTarget.checked)}
+            />
+          </Group>
           <Textarea
-            value={exportJson}
+            value={exportContent}
             readOnly
-            minRows={10}
-            maxRows={20}
+            minRows={20}
+            autosize
             styles={{ input: { fontFamily: 'monospace', fontSize: '12px' } }}
           />
           <Group justify="flex-end">
-            <CopyButton value={exportJson}>
+            <CopyButton value={exportContent}>
               {({ copied, copy }) => (
                 <Button variant="light" onClick={copy}>
                   {copied ? 'Copied!' : 'Copy to Clipboard'}
                 </Button>
               )}
             </CopyButton>
-            <Button onClick={handleDownload}>Download File</Button>
+            <Button onClick={handleDownload}>
+              Download {exportAsText ? '.txt' : '.json'}
+            </Button>
           </Group>
         </Stack>
       </Modal>
